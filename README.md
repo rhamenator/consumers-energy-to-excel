@@ -7,7 +7,7 @@ It supports both:
 - Original PDF statements downloaded from Consumers Energy.
 - Existing cleaned Excel (`.xlsx`) files.
 
-The script extracts billing information (dates, meter readings, charges, balances, etc.) and writes the normalized result to `output.xlsx`.
+The script extracts billing information (dates, meter readings, charges, balances, etc.) and writes the normalized results to both `output.xlsx` (styled) and `output.csv` (raw data).
 
 ## What the Program Does
 
@@ -22,21 +22,23 @@ The script extracts billing information (dates, meter readings, charges, balance
   - `Monthly Charge`, `Tax`, `Total Bill`
   - `Payment Received`, `Payment Date`, `Late Charge`, `Adjustment Date`
   - `Last Month Balance`, `Balance Before Current Charges`
-- Groups each 12-row block (one billing month) into a single summary row.
-- Outputs the final dataset as `output.xlsx` in the project directory.
+- Converts dollars/negatives into proper accounting/number formats and parses date-like strings into real dates.
+- Groups each billing segment into a single monthly summary row.
+- Outputs a styled Excel workbook with alternating greenbar stripes, frozen header row, auto-fit columns, and a companion `output.csv` for downstream imports.
 
 Sample files included in this folder (`Consumers Energy Itemized Statement 2024-06-14.pdf` and `.xlsx`) demonstrate the one-to-one correspondence between the PDF and Excel formats the script expects.
 
 ## Inputs and Outputs
 
-**Inputs**
+### Inputs
 
 - Consumers Energy Itemized Statement PDF (`*.pdf`).
 - Consumers Energy Itemized Statement Excel (`*.xlsx`).
 
-**Output**
+### Output
 
-- `output.xlsx` — normalized Excel file with one row per billing month and the standardized columns listed above.
+- `output.xlsx` — normalized, formatted Excel file (greenbar styling, frozen header, number/date formats) with one row per billing month.
+- `output.csv` — the same normalized data with no styling for easy importing elsewhere.
 
 ## Dependencies
 
@@ -70,7 +72,7 @@ pip install -r requirements.txt
 python process_consumers_itemized_statement.py
 ```
 
-A file dialog appears. Choose either a PDF or an Excel statement. Once processing finishes, `output.xlsx` will be created in the same directory.
+A file dialog appears. Choose either a PDF or an Excel statement. Once processing finishes, `output.xlsx` and `output.csv` will be created in the same directory.
 
 ## Notes and Future Extensions
 

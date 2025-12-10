@@ -1,4 +1,5 @@
 .venv
+data/
 *.pdf
 *xlsx
 *.log
