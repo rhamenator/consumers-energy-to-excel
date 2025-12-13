@@ -225,9 +225,9 @@ def split_into_months(df: pd.DataFrame) -> list[pd.DataFrame]:
 def map_single_month(month_data: pd.DataFrame) -> dict | None:
     mapped_data: dict[str, object] = {}
     try:
-        begin_date_row = _first_row(month_data, "gas")
+        begin_date_row = _find_energy_row(month_data)
         if begin_date_row is None:
-            raise ValueError("Missing Gas row for month")
+            raise ValueError("Missing Gas or Electric row for month")
         mapped_data["Current Bill Month-Year"] = pd.to_datetime(
             begin_date_row["Begin Date"]
         ).strftime("%Y-%m-%d")
@@ -247,9 +247,9 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
         mapped_data["Read Type"] = begin_date_row.get("Read Type")
         mapped_data["Energy Used"] = begin_date_row.get("Energy Used")
         mapped_data["Use Per Day"] = begin_date_row.get("Use Per Day")
-        mapped_data["Power Factor"] = None
-        mapped_data["Billed KW"] = None
-        mapped_data["Max KW"] = None
+        mapped_data["Power Factor"] = begin_date_row.get("Power Factor")
+        mapped_data["Billed KW"] = begin_date_row.get("Billed KW")
+        mapped_data["Max KW"] = begin_date_row.get("Max KW")
         mapped_data["Balance After Current Charges"] = _first_value(
             month_data,
             "BALANCE AFTER CURRENT CHARGES",
@@ -300,6 +300,40 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
     except Exception as exc:  # pragma: no cover - log and skip malformed month
         print(f"Skipping a month due to error: {exc}", file=sys.stderr)
         return None
+
+
+def _find_energy_row(df: pd.DataFrame):
+    """Find the main energy row (gas or electric) in the month data.
+    
+    Tries to find a row with gas first, then searches for electricity-related rows.
+    Electric rows may contain words like: electric, electricity, power, peak, off-peak, 
+    on-peak, weekend, weekday, etc.
+    """
+    # First try to find a gas row (for gas customers)
+    gas_row = _first_row(df, "gas")
+    if gas_row is not None:
+        return gas_row
+    
+    # If no gas row, try to find electric-related rows
+    electric_keywords = [
+        "electric",
+        "electricity",
+        "power",
+        "peak",
+        "on-peak",
+        "off-peak",
+        "on peak",
+        "off peak",
+        "weekend",
+        "weekday",
+    ]
+    
+    for keyword in electric_keywords:
+        electric_row = _first_row(df, keyword)
+        if electric_row is not None:
+            return electric_row
+    
+    return None
 
 
 def _first_row(df: pd.DataFrame, pattern: str):
