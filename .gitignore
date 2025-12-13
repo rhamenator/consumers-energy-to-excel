@@ -1,8 +1,19 @@
 .venv
 data/
-__pycache__
+__pycache__/
 *.pyc
 *.pyo
-*.pdf
-*xlsx
 *.log
+
+# Generated outputs
+output*.xlsx
+output*.csv
+
+# Ignore statement files by default (often contain sensitive data)
+*.pdf
+*.xlsx
+
+# Keep sample fixtures in the repo
+!Consumers Energy Itemized Statement 2024-06-14.pdf
+!Consumers Energy Itemized Statement 2024-06-14.xlsx
+!Itemized_Statement.pdf
