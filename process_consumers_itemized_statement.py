@@ -31,6 +31,15 @@ COLUMN_NAMES = [
     "Read Type",
     "Energy Used",
     "Use Per Day",
+    "Electric Meter Number",
+    "Electric Begin Date",
+    "Electric End Date",
+    "Electric Days Billed",
+    "Electric Begin Read",
+    "Electric End Read",
+    "Electric Read Type",
+    "Electric Energy Used",
+    "Electric Use Per Day",
     "Power Factor",
     "Billed KW",
     "Max KW",
@@ -46,6 +55,8 @@ COLUMN_NAMES = [
     "Last Month Balance",
     "Balance Before Current Charges",
 ]
+
+
 
 
 def main() -> None:
@@ -225,9 +236,9 @@ def split_into_months(df: pd.DataFrame) -> list[pd.DataFrame]:
 def map_single_month(month_data: pd.DataFrame) -> dict | None:
     mapped_data: dict[str, object] = {}
     try:
-        begin_date_row = _first_row(month_data, "gas")
+        begin_date_row = _find_energy_row(month_data)
         if begin_date_row is None:
-            raise ValueError("Missing Gas row for month")
+            raise ValueError("Missing Gas or Electric row for month")
         mapped_data["Current Bill Month-Year"] = pd.to_datetime(
             begin_date_row["Begin Date"]
         ).strftime("%Y-%m-%d")
@@ -247,9 +258,9 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
         mapped_data["Read Type"] = begin_date_row.get("Read Type")
         mapped_data["Energy Used"] = begin_date_row.get("Energy Used")
         mapped_data["Use Per Day"] = begin_date_row.get("Use Per Day")
-        mapped_data["Power Factor"] = None
-        mapped_data["Billed KW"] = None
-        mapped_data["Max KW"] = None
+        
+        # Extract electricity data (handles both electric-only and gas+electric customers)
+        _extract_electricity_data(mapped_data, month_data, begin_date_row)
         mapped_data["Balance After Current Charges"] = _first_value(
             month_data,
             "BALANCE AFTER CURRENT CHARGES",
@@ -300,6 +311,87 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
     except Exception as exc:  # pragma: no cover - log and skip malformed month
         print(f"Skipping a month due to error: {exc}", file=sys.stderr)
         return None
+
+
+def _extract_electricity_data(mapped_data: dict, month_data: pd.DataFrame, begin_date_row: pd.Series) -> None:
+    """Extract electricity data into mapped_data.
+    
+    Searches for an electric row (identified by having values in Power Factor,
+    Billed KW, or Max KW columns). If found, extracts both electricity usage
+    columns and electric meter information. If not found (gas-only customers),
+    sets all electricity fields to None.
+    """
+    # Check if there's a separate electric row (in case customer has both gas and electric service)
+    electric_row = _find_electric_row(month_data)
+    
+    if electric_row is not None:
+        # Extract electricity usage data
+        mapped_data["Power Factor"] = electric_row.get("Power Factor")
+        mapped_data["Billed KW"] = electric_row.get("Billed KW")
+        mapped_data["Max KW"] = electric_row.get("Max KW")
+        
+        # Extract electric meter information (separate from gas meter)
+        mapped_data["Electric Meter Number"] = electric_row.get("Meter Number")
+        mapped_data["Electric Begin Date"] = electric_row.get("Begin Date")
+        mapped_data["Electric End Date"] = electric_row.get("End Date")
+        mapped_data["Electric Days Billed"] = electric_row.get("Days Billed")
+        mapped_data["Electric Begin Read"] = electric_row.get("Begin Read")
+        mapped_data["Electric End Read"] = electric_row.get("End Read")
+        mapped_data["Electric Read Type"] = electric_row.get("Read Type")
+        mapped_data["Electric Energy Used"] = electric_row.get("Energy Used")
+        mapped_data["Electric Use Per Day"] = electric_row.get("Use Per Day")
+    else:
+        # No electric data found (gas-only customer)
+        mapped_data["Power Factor"] = None
+        mapped_data["Billed KW"] = None
+        mapped_data["Max KW"] = None
+        mapped_data["Electric Meter Number"] = None
+        mapped_data["Electric Begin Date"] = None
+        mapped_data["Electric End Date"] = None
+        mapped_data["Electric Days Billed"] = None
+        mapped_data["Electric Begin Read"] = None
+        mapped_data["Electric End Read"] = None
+        mapped_data["Electric Read Type"] = None
+        mapped_data["Electric Energy Used"] = None
+        mapped_data["Electric Use Per Day"] = None
+
+
+def _find_energy_row(df: pd.DataFrame) -> pd.Series | None:
+    """Find the main energy row (gas or electric) in the month data.
+
+    For gas customers, searches for a row with "gas" in the description.
+    For electric customers, searches for rows that have values in the
+    electricity-related columns (Power Factor, Billed KW, Max KW).
+    
+    Returns the gas row if present, otherwise returns the first electric row.
+    """
+    # First try to find a gas row (for gas customers)
+    gas_row = _first_row(df, "gas")
+    if gas_row is not None:
+        return gas_row
+    
+    # If no gas row, look for electric rows by checking for electricity column data
+    # Electric rows will have values in Power Factor, Billed KW, or Max KW columns
+    return _find_electric_row(df)
+
+
+def _find_electric_row(df: pd.DataFrame) -> pd.Series | None:
+    """Find a row with electric data based on electricity-related columns.
+    
+    Electric rows will have values in Power Factor, Billed KW, or Max KW columns.
+    """
+    electric_columns = ["Power Factor", "Billed KW", "Max KW"]
+    
+    # Use pandas vectorized operations for efficiency
+    for col in electric_columns:
+        if col in df.columns:
+            # Find rows where the column has non-null values
+            mask = df[col].notna() & (df[col] != "") & (df[col].astype(str).str.strip().str.lower() != "none")
+            matching = df[mask]
+            if not matching.empty:
+                return matching.iloc[0]
+    
+    return None
 
 
 def _first_row(df: pd.DataFrame, pattern: str):
