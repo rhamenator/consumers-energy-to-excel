@@ -47,16 +47,7 @@ COLUMN_NAMES = [
     "Balance Before Current Charges",
 ]
 
-# Keywords used to identify electric billing rows for electric customers
-ELECTRIC_KEYWORDS = [
-    "electric",
-    "electricity",
-    "peak",
-    "on-peak",
-    "off-peak",
-    "weekend",
-    "weekday",
-]
+
 
 
 def main() -> None:
@@ -258,9 +249,19 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
         mapped_data["Read Type"] = begin_date_row.get("Read Type")
         mapped_data["Energy Used"] = begin_date_row.get("Energy Used")
         mapped_data["Use Per Day"] = begin_date_row.get("Use Per Day")
-        mapped_data["Power Factor"] = begin_date_row.get("Power Factor")
-        mapped_data["Billed KW"] = begin_date_row.get("Billed KW")
-        mapped_data["Max KW"] = begin_date_row.get("Max KW")
+        
+        # For electricity data, check if there's a separate electric row
+        # (in case customer has both gas and electric service)
+        electric_row = _find_electric_row(month_data)
+        if electric_row is not None:
+            mapped_data["Power Factor"] = electric_row.get("Power Factor")
+            mapped_data["Billed KW"] = electric_row.get("Billed KW")
+            mapped_data["Max KW"] = electric_row.get("Max KW")
+        else:
+            # Fall back to the main energy row (for electric-only customers)
+            mapped_data["Power Factor"] = begin_date_row.get("Power Factor")
+            mapped_data["Billed KW"] = begin_date_row.get("Billed KW")
+            mapped_data["Max KW"] = begin_date_row.get("Max KW")
         mapped_data["Balance After Current Charges"] = _first_value(
             month_data,
             "BALANCE AFTER CURRENT CHARGES",
@@ -316,20 +317,42 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
 def _find_energy_row(df: pd.DataFrame) -> pd.Series | None:
     """Find the main energy row (gas or electric) in the month data.
 
-    Tries to find a row with gas first, then searches for electricity-related rows.
-    Electric rows may contain words like: electric, electricity, peak, on-peak,
-    off-peak, weekend, weekday, etc.
+    For gas customers, searches for a row with "gas" in the description.
+    For electric customers, searches for rows that have values in the
+    electricity-related columns (Power Factor, Billed KW, Max KW).
+    
+    Returns the gas row if present, otherwise returns the first electric row.
     """
     # First try to find a gas row (for gas customers)
     gas_row = _first_row(df, "gas")
     if gas_row is not None:
         return gas_row
     
-    # If no gas row, try to find electric-related rows
-    for keyword in ELECTRIC_KEYWORDS:
-        electric_row = _first_row(df, keyword)
-        if electric_row is not None:
-            return electric_row
+    # If no gas row, look for electric rows by checking for electricity column data
+    # Electric rows will have values in Power Factor, Billed KW, or Max KW columns
+    return _find_electric_row(df)
+
+
+def _find_electric_row(df: pd.DataFrame) -> pd.Series | None:
+    """Find a row with electric data based on electricity-related columns.
+    
+    Electric rows will have values in Power Factor, Billed KW, or Max KW columns.
+    """
+    electric_columns = ["Power Factor", "Billed KW", "Max KW"]
+    
+    for _, row in df.iterrows():
+        # Check if any of the electric columns have non-null values
+        has_electric_data = False
+        for col in electric_columns:
+            if col in df.columns:
+                value = row.get(col)
+                # Check if value exists and is not null/empty
+                if value is not None and value != "" and str(value).strip().lower() not in ["nan", "none"]:
+                    has_electric_data = True
+                    break
+        
+        if has_electric_data:
+            return row
     
     return None
 
