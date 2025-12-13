@@ -71,6 +71,23 @@ python process_consumers_itemized_statement.py
 
 A file dialog appears. Choose a PDF statement. Once processing finishes, `output.xlsx` and `output.csv` will be created in the same directory.
 
+### Optional: headless/CLI usage (no GUI)
+
+If you are running on a server, via SSH, or any environment where a GUI file picker cannot open, pass the PDF path as an argument:
+
+```pwsh
+python process_consumers_itemized_statement.py path\to\statement.pdf
+```
+
+## Linux and macOS Notes
+
+- The GUI file picker requires `tkinter`. On some Linux distributions, this is not installed by default.
+  - Ubuntu/Debian: `sudo apt-get install -y python3-tk`
+  - Fedora/RHEL: `sudo dnf install -y python3-tkinter`
+- If `tkinter` is not available (or you are in a headless environment), use the CLI mode shown above.
+- Virtual environment activation differs:
+  - Linux/macOS: `python3 -m venv .venv` then `source .venv/bin/activate`
+
 ## Notes and Future Extensions
 
 - The PDF parsing logic is tuned to Consumers Energy Itemized Statements. Major layout changes in future statements may require adjustments.

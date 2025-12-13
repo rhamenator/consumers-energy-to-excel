@@ -6,12 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import tkinter as tk
 from dateutil import parser as date_parser
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from tkinter import filedialog, messagebox
 
 try:
     import pdfplumber
@@ -57,30 +55,117 @@ COLUMN_NAMES = [
 ]
 
 
+USAGE = """Usage:
+  python process_consumers_itemized_statement.py            # GUI file picker
+  python process_consumers_itemized_statement.py <path>     # headless/CLI mode
+"""
 
 
-def main() -> None:
-    root = tk.Tk()
-    root.withdraw()
+def get_input_path_from_argv(argv: list[str]) -> Path | None:
+    if not argv:
+        return None
 
-    file_path = filedialog.askopenfilename(
-        title="Select Itemized Statement (PDF or XLSX)",
-        filetypes=(
-            ("PDF and XLSX files", "*.pdf *.xlsx"),
-            ("PDF files", "*.pdf"),
-            ("XLSX files", "*.xlsx"),
-            ("All files", "*.*"),
-        ),
-    )
+    first = argv[0].strip()
+    if first in {"-h", "--help"}:
+        raise SystemExit(0)
+
+    candidate = Path(first).expanduser()
+    if not candidate.exists():
+        raise FileNotFoundError(f"File not found: {candidate}")
+
+    return candidate
+
+
+def _pick_file_with_dialog() -> Path | None:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception as exc:  # pragma: no cover - depends on OS Python build
+        raise RuntimeError(
+            "tkinter is required for the file picker. "
+            "On Linux you may need to install python3-tk (or similar). "
+            "Alternatively, run in CLI mode: "
+            "python process_consumers_itemized_statement.py <path-to-statement.pdf>"
+        ) from exc
+
+    try:
+        root = tk.Tk()
+        root.withdraw()
+
+        file_path = filedialog.askopenfilename(
+            title="Select Itemized Statement (PDF or XLSX)",
+            filetypes=(
+                ("PDF and XLSX files", "*.pdf *.xlsx"),
+                ("PDF files", "*.pdf"),
+                ("XLSX files", "*.xlsx"),
+                ("All files", "*.*"),
+            ),
+        )
+    except Exception as exc:  # pragma: no cover - e.g., headless / no display
+        raise RuntimeError(
+            "Unable to open the file picker (no GUI/display available?). "
+            "Run in CLI mode instead: "
+            "python process_consumers_itemized_statement.py <path-to-statement.pdf>"
+        ) from exc
 
     if not file_path:
+        return None
+    return Path(file_path)
+
+
+def _show_message(kind: str, title: str, message: str) -> None:
+    """Best-effort GUI messaging; falls back to stderr/stdout."""
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+
+        root = tk.Tk()
+        root.withdraw()
+        if kind == "error":
+            messagebox.showerror(title, message)
+        else:
+            messagebox.showinfo(title, message)
+    except Exception:
+        stream = sys.stderr if kind == "error" else sys.stdout
+        print(f"{title}: {message}", file=stream)
+
+
+
+
+def main(argv: list[str] | None = None) -> None:
+    argv = sys.argv[1:] if argv is None else argv
+
+    try:
+        cli_path = get_input_path_from_argv(argv)
+    except SystemExit:
+        print(USAGE)
+        return
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
+        raise SystemExit(2) from exc
+
+    gui_mode = cli_path is None
+    file_path = cli_path
+    if file_path is None:
+        try:
+            file_path = _pick_file_with_dialog()
+        except Exception as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            print(USAGE, file=sys.stderr)
+            raise SystemExit(2) from exc
+
+    if file_path is None:
         return
 
     try:
-        itemized_statement_df = load_itemized_statement(Path(file_path))
+        itemized_statement_df = load_itemized_statement(file_path)
     except Exception as exc:  # pragma: no cover - surfaced to the user
-        messagebox.showerror("Error", f"Unable to load statement: {exc}")
-        return
+        if gui_mode:
+            _show_message("error", "Error", f"Unable to load statement: {exc}")
+            return
+        print(f"Error: Unable to load statement: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
     mapped_df = map_monthly_data(itemized_statement_df)
     normalized_df, format_hints = normalize_dataframe(mapped_df)
@@ -89,10 +174,10 @@ def main() -> None:
     normalized_df.to_excel(output_path, index=False)
     normalized_df.to_csv(csv_path, index=False)
     apply_excel_formatting(output_path, format_hints)
-    messagebox.showinfo(
-        "Success",
-        "Mapped data saved to output.xlsx and output.csv",
-    )
+    if gui_mode:
+        _show_message("info", "Success", "Mapped data saved to output.xlsx and output.csv")
+    else:
+        print("Mapped data saved to output.xlsx and output.csv")
 
 
 def load_itemized_statement(file_path: Path) -> pd.DataFrame:
@@ -588,5 +673,7 @@ def _autofit_columns(worksheet) -> None:
             max_length = max(max_length, len(str(value)))
         adjusted_width = min(max(max_length + 2, 12), 60)
         worksheet.column_dimensions[column_letter].width = adjusted_width
+
+
 if __name__ == "__main__":
     main()
