@@ -315,9 +315,9 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
 
 def _find_energy_row(df: pd.DataFrame) -> pd.Series | None:
     """Find the main energy row (gas or electric) in the month data.
-    
+
     Tries to find a row with gas first, then searches for electricity-related rows.
-    Electric rows may contain words like: electric, electricity, peak, on-peak, 
+    Electric rows may contain words like: electric, electricity, peak, on-peak,
     off-peak, weekend, weekday, etc.
     """
     # First try to find a gas row (for gas customers)
