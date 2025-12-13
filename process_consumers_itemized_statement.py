@@ -47,6 +47,17 @@ COLUMN_NAMES = [
     "Balance Before Current Charges",
 ]
 
+# Keywords used to identify electric billing rows for electric customers
+ELECTRIC_KEYWORDS = [
+    "electric",
+    "electricity",
+    "peak",
+    "on-peak",
+    "off-peak",
+    "weekend",
+    "weekday",
+]
+
 
 def main() -> None:
     root = tk.Tk()
@@ -302,12 +313,12 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
         return None
 
 
-def _find_energy_row(df: pd.DataFrame):
+def _find_energy_row(df: pd.DataFrame) -> pd.Series | None:
     """Find the main energy row (gas or electric) in the month data.
     
     Tries to find a row with gas first, then searches for electricity-related rows.
-    Electric rows may contain words like: electric, electricity, power, peak, off-peak, 
-    on-peak, weekend, weekday, etc.
+    Electric rows may contain words like: electric, electricity, peak, on-peak, 
+    off-peak, weekend, weekday, etc.
     """
     # First try to find a gas row (for gas customers)
     gas_row = _first_row(df, "gas")
@@ -315,20 +326,7 @@ def _find_energy_row(df: pd.DataFrame):
         return gas_row
     
     # If no gas row, try to find electric-related rows
-    electric_keywords = [
-        "electric",
-        "electricity",
-        "power",
-        "peak",
-        "on-peak",
-        "off-peak",
-        "on peak",
-        "off peak",
-        "weekend",
-        "weekday",
-    ]
-    
-    for keyword in electric_keywords:
+    for keyword in ELECTRIC_KEYWORDS:
         electric_row = _first_row(df, keyword)
         if electric_row is not None:
             return electric_row
