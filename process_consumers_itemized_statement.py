@@ -31,6 +31,15 @@ COLUMN_NAMES = [
     "Read Type",
     "Energy Used",
     "Use Per Day",
+    "Electric Meter Number",
+    "Electric Begin Date",
+    "Electric End Date",
+    "Electric Days Billed",
+    "Electric Begin Read",
+    "Electric End Read",
+    "Electric Read Type",
+    "Electric Energy Used",
+    "Electric Use Per Day",
     "Power Factor",
     "Billed KW",
     "Max KW",
@@ -308,19 +317,43 @@ def _extract_electricity_data(mapped_data: dict, month_data: pd.DataFrame, begin
     """Extract electricity data into mapped_data.
     
     Checks for a separate electric row (for gas+electric customers),
-    otherwise falls back to the begin_date_row (for electric-only customers).
+    otherwise checks if begin_date_row is an electric row (for electric-only customers).
+    Extracts both electricity usage columns (Power Factor, Billed KW, Max KW)
+    and electric meter information.
     """
     # Check if there's a separate electric row (in case customer has both gas and electric service)
     electric_row = _find_electric_row(month_data)
+    
     if electric_row is not None:
+        # Extract electricity usage data
         mapped_data["Power Factor"] = electric_row.get("Power Factor")
         mapped_data["Billed KW"] = electric_row.get("Billed KW")
         mapped_data["Max KW"] = electric_row.get("Max KW")
+        
+        # Extract electric meter information (separate from gas meter)
+        mapped_data["Electric Meter Number"] = electric_row.get("Meter Number")
+        mapped_data["Electric Begin Date"] = electric_row.get("Begin Date")
+        mapped_data["Electric End Date"] = electric_row.get("End Date")
+        mapped_data["Electric Days Billed"] = electric_row.get("Days Billed")
+        mapped_data["Electric Begin Read"] = electric_row.get("Begin Read")
+        mapped_data["Electric End Read"] = electric_row.get("End Read")
+        mapped_data["Electric Read Type"] = electric_row.get("Read Type")
+        mapped_data["Electric Energy Used"] = electric_row.get("Energy Used")
+        mapped_data["Electric Use Per Day"] = electric_row.get("Use Per Day")
     else:
-        # Fall back to the main energy row (for electric-only customers)
-        mapped_data["Power Factor"] = begin_date_row.get("Power Factor")
-        mapped_data["Billed KW"] = begin_date_row.get("Billed KW")
-        mapped_data["Max KW"] = begin_date_row.get("Max KW")
+        # No electric data found (gas-only customer)
+        mapped_data["Power Factor"] = None
+        mapped_data["Billed KW"] = None
+        mapped_data["Max KW"] = None
+        mapped_data["Electric Meter Number"] = None
+        mapped_data["Electric Begin Date"] = None
+        mapped_data["Electric End Date"] = None
+        mapped_data["Electric Days Billed"] = None
+        mapped_data["Electric Begin Read"] = None
+        mapped_data["Electric End Read"] = None
+        mapped_data["Electric Read Type"] = None
+        mapped_data["Electric Energy Used"] = None
+        mapped_data["Electric Use Per Day"] = None
 
 
 def _find_energy_row(df: pd.DataFrame) -> pd.Series | None:
