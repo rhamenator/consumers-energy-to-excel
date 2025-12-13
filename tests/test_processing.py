@@ -9,6 +9,25 @@ import pandas as pd
 import process_consumers_itemized_statement as pcs
 
 
+def test_get_input_path_from_argv_empty_returns_none():
+    assert pcs.get_input_path_from_argv([]) is None
+
+
+def test_get_input_path_from_argv_returns_existing_path(tmp_path: Path):
+    statement = tmp_path / "statement.pdf"
+    statement.write_bytes(b"%PDF-1.4\n%fake\n")
+    assert pcs.get_input_path_from_argv([str(statement)]) == statement
+
+
+def test_get_input_path_from_argv_missing_path_raises(tmp_path: Path):
+    missing = tmp_path / "missing.pdf"
+    try:
+        pcs.get_input_path_from_argv([str(missing)])
+        assert False, "Expected FileNotFoundError"
+    except FileNotFoundError:
+        assert True
+
+
 def test_normalize_cell_trailing_minus_accounting():
     value, fmt = pcs.normalize_cell("$205.24-")
     assert value == -205.24
