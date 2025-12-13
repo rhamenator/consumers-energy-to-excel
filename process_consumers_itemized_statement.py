@@ -316,10 +316,10 @@ def map_single_month(month_data: pd.DataFrame) -> dict | None:
 def _extract_electricity_data(mapped_data: dict, month_data: pd.DataFrame, begin_date_row: pd.Series) -> None:
     """Extract electricity data into mapped_data.
     
-    Checks for a separate electric row (for gas+electric customers),
-    otherwise checks if begin_date_row is an electric row (for electric-only customers).
-    Extracts both electricity usage columns (Power Factor, Billed KW, Max KW)
-    and electric meter information.
+    Searches for an electric row (identified by having values in Power Factor,
+    Billed KW, or Max KW columns). If found, extracts both electricity usage
+    columns and electric meter information. If not found (gas-only customers),
+    sets all electricity fields to None.
     """
     # Check if there's a separate electric row (in case customer has both gas and electric service)
     electric_row = _find_electric_row(month_data)
