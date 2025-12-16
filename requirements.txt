@@ -20,7 +20,7 @@ et_xmlfile==2.0.0
 etelemetry==0.3.1
 executing==2.1.0
 fastjsonschema==2.21.1
-filelock==3.16.1
+filelock==3.20.1
 frontend==0.0.3
 h11==0.16.0
 httplib2==0.22.0
