@@ -1,0 +1,121 @@
+name: Release installers
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  APP_VERSION: 0.1.${{ github.run_number }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - run: sudo apt-get update && sudo apt-get install -y python3-tk
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: pytest
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller --clean --onefile --name consumers-energy-to-excel process_consumers_itemized_statement.py
+      - run: choco install innosetup --no-progress -y
+      - shell: pwsh
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" packaging\windows\ConsumersEnergyToExcel.iss'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: consumers-energy-to-excel-windows
+          path: artifacts/*.exe
+          if-no-files-found: error
+
+  macos:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x64
+          - runner: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller --clean --onefile --name consumers-energy-to-excel process_consumers_itemized_statement.py
+      - name: Build pkg
+        run: |
+          mkdir -p package-root/usr/local/bin artifacts
+          install -m 755 dist/consumers-energy-to-excel package-root/usr/local/bin/consumers-energy-to-excel
+          pkgbuild --root package-root --identifier com.yourfoxprodeveloper.consumers-energy-to-excel --version "$APP_VERSION" "artifacts/consumers-energy-to-excel-${APP_VERSION}-macos-${{ matrix.arch }}.pkg"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: consumers-energy-to-excel-macos-${{ matrix.arch }}
+          path: artifacts/*.pkg
+          if-no-files-found: error
+
+  linux:
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: sudo apt-get update && sudo apt-get install -y python3-tk ruby-dev rpm
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller --clean --onefile --name consumers-energy-to-excel process_consumers_itemized_statement.py
+      - name: Build deb and rpm
+        run: |
+          sudo gem install --no-document fpm
+          mkdir -p package-root/usr/bin artifacts
+          install -m 755 dist/consumers-energy-to-excel package-root/usr/bin/consumers-energy-to-excel
+          fpm -s dir -t deb -n consumers-energy-to-excel -v "$APP_VERSION" -C package-root -p "artifacts/consumers-energy-to-excel_${APP_VERSION}_amd64.deb" .
+          fpm -s dir -t rpm -n consumers-energy-to-excel -v "$APP_VERSION" -C package-root -p "artifacts/consumers-energy-to-excel-${APP_VERSION}-1.x86_64.rpm" .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: consumers-energy-to-excel-linux
+          path: artifacts/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          pattern: consumers-energy-to-excel-*
+          merge-multiple: true
+      - run: gh release create "$GITHUB_REF_NAME" release-assets/* --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
