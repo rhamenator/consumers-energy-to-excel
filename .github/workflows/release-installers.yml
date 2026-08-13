@@ -26,7 +26,9 @@ jobs:
             requirements-dev.txt
       - run: sudo apt-get update && sudo apt-get install -y python3-tk
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: pytest
+      # Running pytest through the selected interpreter keeps the repository
+      # root on sys.path so the top-level application module is importable.
+      - run: python -m pytest
 
   windows:
     needs: test
