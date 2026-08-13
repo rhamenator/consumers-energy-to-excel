@@ -70,7 +70,7 @@ pytils==0.4.1
 pytz==2024.2
 pywin32==308; sys_platform == 'win32'
 pyxnat==1.6.2
-pyzmq==26.2.0
+pyzmq==27.1.0
 rdflib==6.3.2
 referencing==0.36.0
 requests==2.33.0
