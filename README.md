@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/logo.png" alt="Consumers Energy to Excel logo" width="220">
+</p>
+
 # Consumers Energy Itemized Statement Processor
 
 This program processes Consumers Energy Itemized Statement bills and converts them into a clean, tabular Excel file suitable for analysis.
