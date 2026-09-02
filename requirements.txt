@@ -60,7 +60,7 @@ platformdirs==4.3.6
 prompt_toolkit==3.0.48
 prov==2.0.1
 pure_eval==0.2.3
-puremagic==1.28
+puremagic==2.2.0
 pydot==3.0.4
 Pygments==2.20.0
 PyMuPDF==1.25.1
