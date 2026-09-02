@@ -61,7 +61,7 @@ prompt_toolkit==3.0.48
 prov==2.0.1
 pure_eval==0.2.3
 puremagic==1.28
-pydot==3.0.4
+pydot==4.0.1
 Pygments==2.20.0
 PyMuPDF==1.25.1
 pyparsing==3.2.1
