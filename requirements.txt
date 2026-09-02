@@ -1,5 +1,5 @@
 acres==0.2.0
-aiofiles==24.1.0
+aiofiles==25.1.0
 anyio==4.8.0
 asttokens==3.0.0
 attrs==24.3.0
