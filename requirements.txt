@@ -88,7 +88,7 @@ tornado==6.5.8
 traitlets==5.14.3
 traits==6.4.3
 typing_extensions==4.12.2
-tzdata==2024.2
+tzdata==2026.3
 urllib3==2.7.0
 uvicorn==0.34.0
 wcwidth==0.2.13
