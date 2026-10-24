@@ -41,7 +41,7 @@ MarkupSafe==3.0.2
 matplotlib-inline==0.1.7
 mistune==3.3.3
 nbclient==0.10.2
-nbconvert==7.17.1
+nbconvert==7.17.2
 nbformat==5.10.4
 networkx==3.4.2
 nibabel==5.3.2
